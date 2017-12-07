@@ -1,10 +1,11 @@
 describe "Lilypond test", ->
         
-        it "should echo lilypond Hello World", ->
+        it "should make a G major arpeggio", ->
                 new Promise (resolve, reject) ->                
                         ly = new LilypondRunner({
+                                project_id: uuid.v4()
                                 directory: path.join(__dirname, '..', 'examples')
                                 mainFile: 'main2.ly'
-                                timeout: 60000
+                                merge:true
                         })
                         ly.run().then(resolve).catch(reject)

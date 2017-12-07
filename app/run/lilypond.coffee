@@ -1,18 +1,24 @@
 LilypondRunner::run = ->
         self = this
         new Promise (resolve, reject) ->
-                
-                # record running project under this id
-                project_id = uuid.v4()
-                id = "#{project_id}" 
+                id = "#{self.project_id}" 
 
                 # The command
-                command = @_lilypondCommand
+                compile_file = self.mainFile.split(".ly")[0]
+                
+                command = [
+                        "lilypond"
+                        "-dsafe"
+                        "--pdf"
+                        "--output"
+                        compile_file
+                        self.mainFile
+                ]
                 ProcessTable[id] = new CommandRunner({
-                        project_id: project_id,
-                        command: self.command,
+                        project_id: self.project_id
+                        command: command
                         directory: self.directory
-                        mergeNativeEnv:true
+                        environment:self.environment
                 })
 
                 onOutput = (output) ->

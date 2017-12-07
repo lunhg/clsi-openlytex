@@ -1,4 +1,4 @@
-var child_process, mocha, path, uuid;
+var CommandRunner, LilypondRunner, child_process, clsi, id, mocha, path, uuid;
 
 path = require('path');
 
@@ -8,17 +8,39 @@ mocha = require('mocha');
 
 uuid = require('uuid');
 
+clsi = require('./clsi-lilypond');
+
+CommandRunner = clsi.CommandRunner;
+
+LilypondRunner = clsi.LilypondRunner;
+
+id = uuid.v4();
+
 describe("Command test", function() {
-  return it("should run a single list folders in root path", function() {
+  return it("should make a C major arpeggio", function() {
     return new Promise(function(resolve, reject) {
-      var id, ly;
-      id = "test-command-runner-" + uuid.v4();
+      var ly;
       ly = new CommandRunner({
         project_id: id,
-        directory: path.join(__dirname, '..'),
-        command: "ls"
+        directory: path.join(__dirname, '..', 'examples'),
+        command: ["lilypond", "-dsafe", "--pdf", "--output", "main", "main.ly"]
       });
-      return ly.run({}).then(resolve).catch(reject);
+      return ly.run().then(resolve).catch(reject);
+    });
+  });
+});
+
+describe("Lilypond test", function() {
+  return it("should make a G major arpeggio", function() {
+    return new Promise(function(resolve, reject) {
+      var ly;
+      ly = new LilypondRunner({
+        project_id: uuid.v4(),
+        directory: path.join(__dirname, '..', 'examples'),
+        mainFile: 'main2.ly',
+        merge: true
+      });
+      return ly.run().then(resolve).catch(reject);
     });
   });
 });

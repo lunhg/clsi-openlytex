@@ -6,7 +6,7 @@
     "scripts": {
 	"build": "grunt --verbose build:init build:libs coffee usebanner",
 	"start": "./bin/cls-lilypond",
-	"test": "npm run build && mocha ./bin/clsi-lilypond-command-test.js && mocha./bin/clsi-lilypond-runner-test.js"
+	"test": "npm run build && mocha --timeout 5000 ./bin/clsi-lilypond-test.js"
     },
     "repository": {
 	"type": "git",
@@ -46,7 +46,7 @@
 			"app/kill/lilypond.coffee",
 			"boot/exports.coffee"
 		    ],
-		    "bin/clsi-lilypond-command-test.js": [
+		    "bin/clsi-lilypond-test.js": [
 			"boot/devDependencies.coffee",
 			"boot/test.coffee",
 			"test/command.coffee",
@@ -63,7 +63,7 @@
 		    "linebreak": true
 		},
 		"files": {
-		    "src": "bin/www"
+		    "src": "bin/clsi-lilypond"
 		}
 	    }
 	}

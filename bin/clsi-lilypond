@@ -1,3 +1,4 @@
+#!/usr/bin/env /home/guilherme/.nvm/versions/node/v8.5.0/bin/node
 var CommandRunner, LilypondRunner, ProcessTable, bunyan, child_process, path, uuid;
 
 path = require('path');
@@ -20,30 +21,25 @@ ProcessTable = {};
 //   - /test/command.coffee
 CommandRunner = class CommandRunner {
   constructor(opt) {
-    var key, ref, ref1, value;
+    var key, ref, value;
     this.project_id = opt.project_id;
     this.directory = opt.directory;
     this.command = opt.command;
-    console.log(this.command);
     
     // merge environment settings
-    this.environment = {};
-    ref = opt.environment;
-    for (key in ref) {
-      value = ref[key];
-      this.environment[key] = value;
-    }
-    if (opt.mergeNativeEnv) {
-      ref1 = process.env;
-      for (key in ref1) {
-        value = ref1[key];
-        this.environment[key] = value;
+    this.environment = opt.environment;
+    if (opt.merge) {
+      ref = process.env;
+      for (key in ref) {
+        value = ref[key];
+        if (!opt.environment[key]) {
+          this.environment[key] = value;
+        }
       }
     }
     this.logger = bunyan.createLogger({
-      name: "clsi-lilypond-command-runner"
+      name: "clsi-lilypond"
     });
-    this.logger.info("using standard command runner");
   }
 
   makeProcess() {
@@ -82,7 +78,7 @@ CommandRunner = class CommandRunner {
     };
   }
 
-  done(resolve, pid) {
+  done(resolve, reject, pid) {
     var self;
     self = this;
     return function(code, signal) {
@@ -115,7 +111,7 @@ CommandRunner.prototype.run = function() {
     var proc;
     proc = self.makeProcess();
     proc.on("error", self.error(reject));
-    return proc.on("close", self.done(resolve, proc.pid));
+    return proc.on("close", self.done(resolve, reject, proc.pid));
   });
 };
 
@@ -144,12 +140,10 @@ CommandRunner.prototype.kill = function(pid) {
 
 LilypondRunner = class LilypondRunner {
   constructor(opt) {
-    var compile_file;
     this.mainFile = opt.mainFile;
     this.directory = opt.directory;
     this.timeout = opt.timeout || 60000;
-    compile_file = this.mainFile.split(".ly")[0];
-    this.command = ["lilypond", "--pdf", "--output", compile_file, this.mainFile];
+    this.project_id = opt.project_id;
   }
 
 };
@@ -158,19 +152,17 @@ LilypondRunner.prototype.run = function() {
   var self;
   self = this;
   return new Promise(function(resolve, reject) {
-    var command, id, onError, onOutput, project_id;
-    
-    // record running project under this id
-    project_id = uuid.v4();
-    id = `${project_id}`;
+    var command, compile_file, id, onError, onOutput;
+    id = `${self.project_id}`;
     
     // The command
-    command = this._lilypondCommand;
+    compile_file = self.mainFile.split(".ly")[0];
+    command = ["lilypond", "-dsafe", "--pdf", "--output", compile_file, self.mainFile];
     ProcessTable[id] = new CommandRunner({
-      project_id: project_id,
-      command: self.command,
+      project_id: self.project_id,
+      command: command,
       directory: self.directory,
-      mergeNativeEnv: true
+      environment: self.environment
     });
     onOutput = function(output) {
       delete ProcessTable[id];

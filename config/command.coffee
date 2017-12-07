@@ -11,16 +11,15 @@ class CommandRunner
                 @project_id = opt.project_id
                 @directory = opt.directory
                 @command = opt.command
-                console.log @command
                 
                  # merge environment settings
-                @environment = {}
-                @environment[key] = value for key, value of opt.environment
-                if opt.mergeNativeEnv
-                        @environment[key] = value for key, value of process.env
+                @environment = opt.environment
+                if opt.merge
+                        for key, value of process.env
+                                if not opt.environment[key]
+                                        @environment[key] = value 
                 
-                @logger = bunyan.createLogger({name: "clsi-lilypond-command-runner"})
-                @logger.info "using standard command runner"
+                @logger = bunyan.createLogger({name: "clsi-lilypond"})
 
         makeProcess: ->
                 # Log this command
@@ -53,7 +52,7 @@ class CommandRunner
                         }, "error running command")
                         reject err
 
-        done: (resolve, pid) ->
+        done: (resolve, reject, pid) ->
                 self = this
                 (code, signal) ->
                         self.logger.info({
