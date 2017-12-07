@@ -1,0 +1,71 @@
+{
+    "name": "clsi-openlytex",
+    "version": "0.0.1",
+    "description": "Common Lilypond Service Interface for node.js",
+    "main": "bin/clsi-lilypond",
+    "scripts": {
+	"build": "grunt --verbose build:init build:libs coffee usebanner",
+	"start": "./bin/cls-lilypond",
+	"test": "npm run build && mocha ./bin/clsi-lilypond-command-test.js && mocha./bin/clsi-lilypond-runner-test.js"
+    },
+    "repository": {
+	"type": "git",
+	"url": "https://www.github.como/lunhg/clsi-lilypond.git"
+    },
+    "author": "lunhanig@gmail.com",
+    "license": "SEE LICENSE IN LICENSE",
+    "dependencies": {
+	"bunyan": "^1.8.12",
+	"uuid": "^3.1.0"
+    },
+    "devDependencies": {
+	"check_node": "^1.0.0",
+	"grunt": "^1.0.1",
+	"grunt-banner": "^0.6.0",
+	"grunt-contrib-coffee": "^2.0.0",
+	"mocha": "^4.0.1",
+	"require-from-package": "0.0.4",
+	"uuid": "^3.1.0"
+    },
+    "options": {
+	"coffee": {
+	    "compileJoin": {
+		"options": {
+		    "join": true,
+		    "bare": true
+		},
+		"files": {
+		    "bin/clsi-lilypond": [
+			"boot/dependencies.coffee",
+			"db/init.coffee",
+			"config/command.coffee",
+			"app/run/command.coffee",
+			"app/kill/command.coffee",
+			"config/lilypond.coffee",
+			"app/run/lilypond.coffee",
+			"app/kill/lilypond.coffee",
+			"boot/exports.coffee"
+		    ],
+		    "bin/clsi-lilypond-command-test.js": [
+			"boot/devDependencies.coffee",
+			"boot/test.coffee",
+			"test/command.coffee",
+			"test/lilypond.coffee"
+		    ]
+		}
+	    }
+	},
+	"usebanner": {
+	    "www": {
+		"options": {
+		    "position": "top",
+		    "banner": "#!/usr/bin/env <%= pkg.node_version %>",
+		    "linebreak": true
+		},
+		"files": {
+		    "src": "bin/www"
+		}
+	    }
+	}
+    }
+}

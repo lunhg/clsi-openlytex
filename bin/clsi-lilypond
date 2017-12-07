@@ -1,0 +1,207 @@
+var CommandRunner, LilypondRunner, ProcessTable, bunyan, child_process, path, uuid;
+
+path = require('path');
+
+child_process = require('child_process');
+
+bunyan = require('bunyan');
+
+uuid = require('uuid');
+
+// Dummy DB
+ProcessTable = {};
+
+// Little changes on
+// - https://github.com/sharelatex/clsi-sharelatex/blob/master/app/coffee/CommandRunner.coffee
+// with asynchronous method
+// - see:
+//   - /app/run/command.coffee
+//   - /app/kill/command.coffee
+//   - /test/command.coffee
+CommandRunner = class CommandRunner {
+  constructor(opt) {
+    var key, ref, ref1, value;
+    this.project_id = opt.project_id;
+    this.directory = opt.directory;
+    this.command = opt.command;
+    console.log(this.command);
+    
+    // merge environment settings
+    this.environment = {};
+    ref = opt.environment;
+    for (key in ref) {
+      value = ref[key];
+      this.environment[key] = value;
+    }
+    if (opt.mergeNativeEnv) {
+      ref1 = process.env;
+      for (key in ref1) {
+        value = ref1[key];
+        this.environment[key] = value;
+      }
+    }
+    this.logger = bunyan.createLogger({
+      name: "clsi-lilypond-command-runner"
+    });
+    this.logger.info("using standard command runner");
+  }
+
+  makeProcess() {
+    var args, cmd, proc;
+    // Log this command
+    this.logger.info({
+      project_id: this.project_id,
+      command: this.command,
+      directory: this.directory,
+      env: this.environment
+    }, "running command");
+    
+    // run command as detached process
+    // so it has its own process group (which can be killed if needed)
+    cmd = this.command[0];
+    args = this.command.slice(1);
+    return proc = child_process.spawn(cmd, args, {
+      stdio: "inherit",
+      cwd: this.directory,
+      detached: true,
+      env: this.environment
+    });
+  }
+
+  error(reject) {
+    var self;
+    self = this;
+    return function(err) {
+      self.logger.info({
+        err: err,
+        project_id: self.project_id,
+        command: self.command,
+        directory: self.directory
+      }, "error running command");
+      return reject(err);
+    };
+  }
+
+  done(resolve, pid) {
+    var self;
+    self = this;
+    return function(code, signal) {
+      var err;
+      self.logger.info({
+        code: code,
+        signal: signal,
+        project_id: self.project_id
+      }, "command exited");
+      if (signal === 'SIGTERM') { // signal from kill method below
+        err = new Error("terminated");
+        err.terminated = true;
+        return reject(err);
+      } else if (code === 1) { // exit status from chktex
+        err = new Error("exited");
+        err.code = code;
+        return reject(err);
+      } else {
+        return resolve(pid);
+      }
+    };
+  }
+
+};
+
+CommandRunner.prototype.run = function() {
+  var self;
+  self = this;
+  return new Promise(function(resolve, reject) {
+    var proc;
+    proc = self.makeProcess();
+    proc.on("error", self.error(reject));
+    return proc.on("close", self.done(resolve, proc.pid));
+  });
+};
+
+CommandRunner.prototype.kill = function(pid) {
+  var self;
+  self = this;
+  return new Promise(function(resolve, reject) {
+    var err;
+    try {
+      self.logger.warn({
+        pid: pid,
+        project_id: self.project_id
+      }, "command killed");
+      process.kill(-pid); // kill all processes in group
+      return resolve();
+    } catch (error) {
+      err = error;
+      self.logger.warn({
+        err: err,
+        project_id: self.project_id
+      }, "error on kill command");
+      return reject(err);
+    }
+  });
+};
+
+LilypondRunner = class LilypondRunner {
+  constructor(opt) {
+    var compile_file;
+    this.mainFile = opt.mainFile;
+    this.directory = opt.directory;
+    this.timeout = opt.timeout || 60000;
+    compile_file = this.mainFile.split(".ly")[0];
+    this.command = ["lilypond", "--pdf", "--output", compile_file, this.mainFile];
+  }
+
+};
+
+LilypondRunner.prototype.run = function() {
+  var self;
+  self = this;
+  return new Promise(function(resolve, reject) {
+    var command, id, onError, onOutput, project_id;
+    
+    // record running project under this id
+    project_id = uuid.v4();
+    id = `${project_id}`;
+    
+    // The command
+    command = this._lilypondCommand;
+    ProcessTable[id] = new CommandRunner({
+      project_id: project_id,
+      command: self.command,
+      directory: self.directory,
+      mergeNativeEnv: true
+    });
+    onOutput = function(output) {
+      delete ProcessTable[id];
+      return resolve(output);
+    };
+    onError = function(err) {
+      return reject(err);
+    };
+    return ProcessTable[id].run().then(onOutput).catch(onError);
+  });
+};
+
+LilypondRunner.prototype.killLilypond = function(project_id) {
+  var self;
+  self = this;
+  return new Promise(function(resolve, reject) {
+    var id;
+    id = `${self.project_id}`;
+    this.logger.log({
+      id: id
+    }, "killing running compile");
+    if (ProcessTable[id] == null) {
+      this.logger.warn({id}, "no such project to kill");
+      return reject(new Error("no such project to kill"));
+    } else {
+      return CommandRunner.kill(ProcessTable[id]).then(resolve).catch(reject);
+    }
+  });
+};
+
+module.exports = {
+  LilypondRunner: LilypondRunner,
+  CommandRunner: CommandRunner
+};

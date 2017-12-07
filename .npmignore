@@ -1,0 +1,6 @@
+app/
+config/
+test/
+db/
+examples/
+boot/
